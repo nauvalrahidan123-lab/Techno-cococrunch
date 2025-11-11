@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth"; // Tambahkan ini untuk login admin
-import { getAnalytics } from "firebase/analytics";
 
 // Menggunakan import.meta.env untuk membaca Environment Variables dari Vercel
 const firebaseConfig = {
@@ -20,6 +19,5 @@ const app = initializeApp(firebaseConfig);
 // Ekspor layanan yang akan digunakan di seluruh aplikasi
 export const db = getFirestore(app);
 export const auth = getAuth(app); // Ekspor autentikasi
-export const analytics = getAnalytics(app);
 
 // Catatan: Pastikan Anda telah mengatur semua variabel VITE_... di Vercel.
