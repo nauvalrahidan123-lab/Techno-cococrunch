@@ -33,10 +33,31 @@ const HeroSection = () => {
 
 const ProductCard: React.FC<{ product: Product; addToCart: (product: Product) => void; }> = ({ product, addToCart }) => {
     const stockColor = product.stock <= product.minStock ? 'text-red-500' : 'text-green-600';
+    const placeholderImage = 'https://images.unsplash.com/photo-1582213794353-764536d3969a?q=80&w=400&h=300&fit=crop';
+
+    // FIX: Use component state to manage image source for robustness.
+    // This prevents issues where an invalid imageUrl prop might cause rendering problems
+    // and ensures the onError handler correctly falls back to a placeholder.
+    const [imageSrc, setImageSrc] = useState(product.imageUrl || placeholderImage);
+
+    useEffect(() => {
+        // Update image source if the product prop changes
+        setImageSrc(product.imageUrl || placeholderImage);
+    }, [product.imageUrl]);
+
+    const handleImageError = () => {
+        setImageSrc(placeholderImage);
+    };
+
 
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden transform hover:-translate-y-2 transition-all duration-300 hover:shadow-xl border border-gray-200/80">
-            <img className="w-full h-56 object-cover" src={product.imageUrl} alt={`${product.name} ${product.flavor}`} />
+            <img 
+                className="w-full h-56 object-cover" 
+                src={imageSrc} 
+                alt={`${product.name} ${product.flavor}`}
+                onError={handleImageError}
+            />
             <div className="p-5">
                 <h3 className="text-xl font-bold font-display text-brand-dark">{product.name}</h3>
                 <p className="text-sm text-gray-500 mb-3">{product.flavor}</p>
