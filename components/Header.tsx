@@ -1,6 +1,6 @@
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCartIcon } from './icons';
 
 interface HeaderProps {
@@ -8,6 +8,23 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ cartItemCount }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleProductsLinkClick = () => {
+        // If we are on the homepage, scroll to products section
+        if (location.pathname === '/') {
+            const productsSection = document.getElementById('produk');
+            if (productsSection) {
+                productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        } else {
+            // If on another page, navigate to homepage and pass state to trigger scroll
+            navigate('/', { state: { scrollToProducts: true } });
+        }
+    };
+
+
     return (
         <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,6 +35,9 @@ const Header: React.FC<HeaderProps> = ({ cartItemCount }) => {
                         </Link>
                     </div>
                     <div className="flex items-center space-x-6">
+                        <button onClick={handleProductsLinkClick} className="text-gray-600 hover:text-brand-primary font-medium transition-colors duration-200">
+                            Daftar Produk
+                        </button>
                         <Link to="/admin" className="text-gray-600 hover:text-brand-primary font-medium transition-colors duration-200">
                             Admin
                         </Link>

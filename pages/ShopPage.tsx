@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getProducts } from '../services/firestoreService';
 import { Product } from '../types';
 import toast from 'react-hot-toast';
@@ -82,6 +83,19 @@ const ProductCard: React.FC<{ product: Product; addToCart: (product: Product) =>
 const ShopPage: React.FC<{ addToCart: (product: Product) => void; }> = ({ addToCart }) => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const location = useLocation();
+
+    useEffect(() => {
+        // Handles scrolling to product list when navigated with state
+        if (location.state?.scrollToProducts) {
+            const productsSection = document.getElementById('produk');
+            if (productsSection) {
+                productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            // Clean up state to prevent scrolling on refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     useEffect(() => {
         const fetchProducts = async () => {

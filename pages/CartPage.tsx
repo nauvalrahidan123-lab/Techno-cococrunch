@@ -1,5 +1,5 @@
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CartItem } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
 import { addOrder } from '../services/firestoreService';
@@ -39,6 +39,50 @@ const CheckoutConfirmationModal = ({ isOpen, onClose, onConfirm, orderDetails, i
                         {isProcessing ? 'Memproses...' : 'Konfirmasi & Bayar'}
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+
+// FIX: Extracted Cart Item into its own component to properly manage image loading state.
+// This ensures that if an image URL is invalid, it reliably falls back to a placeholder.
+const CartItemRow: React.FC<{ item: CartItem; updateQuantity: (productId: string, quantity: number) => void; removeFromCart: (productId: string) => void; }> = ({ item, updateQuantity, removeFromCart }) => {
+    const placeholderImage = 'https://images.unsplash.com/photo-1582213794353-764536d3969a?q=80&w=400&h=300&fit=crop';
+    const [imageSrc, setImageSrc] = useState(item.product.imageUrl || placeholderImage);
+
+    useEffect(() => {
+        setImageSrc(item.product.imageUrl || placeholderImage);
+    }, [item.product.imageUrl]);
+
+    const handleImageError = () => {
+        setImageSrc(placeholderImage);
+    };
+
+    return (
+        <div className="flex flex-col sm:flex-row items-center justify-between p-4">
+            <div className="flex items-center mb-4 sm:mb-0">
+                <img
+                    src={imageSrc}
+                    alt={item.product.name}
+                    className="h-24 w-24 object-cover rounded-lg mr-4"
+                    onError={handleImageError}
+                />
+                <div>
+                    <p className="font-semibold text-lg text-brand-dark">{item.product.name} ({item.product.flavor})</p>
+                    <p className="text-gray-600">Rp {item.product.price.toLocaleString('id-ID')}</p>
+                </div>
+            </div>
+            <div className="flex items-center space-x-4">
+                <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value))}
+                    min="1"
+                    max={item.product.stock}
+                    className="w-20 text-center border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                />
+                <button onClick={() => removeFromCart(item.product.id)} className="text-red-500 hover:text-red-700 font-semibold">Hapus</button>
             </div>
         </div>
     );
@@ -105,26 +149,12 @@ const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: st
                     <div className="w-full lg:w-2/3">
                         <div className="bg-white shadow-lg rounded-xl divide-y divide-gray-200">
                             {cartItems.map(item => (
-                                <div key={item.product.id} className="flex flex-col sm:flex-row items-center justify-between p-4">
-                                    <div className="flex items-center mb-4 sm:mb-0">
-                                        <img src={item.product.imageUrl} alt={item.product.name} className="h-24 w-24 object-cover rounded-lg mr-4" />
-                                        <div>
-                                            <p className="font-semibold text-lg text-brand-dark">{item.product.name} ({item.product.flavor})</p>
-                                            <p className="text-gray-600">Rp {item.product.price.toLocaleString('id-ID')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-4">
-                                        <input
-                                            type="number"
-                                            value={item.quantity}
-                                            onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value))}
-                                            min="1"
-                                            max={item.product.stock}
-                                            className="w-20 text-center border-gray-300 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                                        />
-                                        <button onClick={() => removeFromCart(item.product.id)} className="text-red-500 hover:text-red-700 font-semibold">Hapus</button>
-                                    </div>
-                                </div>
+                                <CartItemRow 
+                                    key={item.product.id}
+                                    item={item}
+                                    updateQuantity={updateQuantity}
+                                    removeFromCart={removeFromCart}
+                                />
                             ))}
                         </div>
                     </div>

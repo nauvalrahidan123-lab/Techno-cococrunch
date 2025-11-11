@@ -4,12 +4,45 @@ import { getProducts, addProduct, updateProduct, deleteProduct } from '../servic
 import toast from 'react-hot-toast';
 import { PlusIcon } from '../components/icons';
 
+// Some high-quality, relevant default images for new products
+const defaultProductImages = [
+    'https://images.unsplash.com/photo-1565935392348-ec85741b5391?q=80&w=400&h=300&fit=crop', // Chocolate cereal
+    'https://images.unsplash.com/photo-1627822612423-a151b6a4a9a0?q=80&w=400&h=300&fit=crop', // Spicy chips
+    'https://images.unsplash.com/photo-1599490659226-3d7584732ebb?q=80&w=400&h=300&fit=crop', // Assorted spicy snacks
+    'https://images.unsplash.com/photo-1600326144458-00c4163b2553?q=80&w=400&h=300&fit=crop',  // Cereal in a bowl
+];
+
+const getRandomDefaultImage = () => {
+    return defaultProductImages[Math.floor(Math.random() * defaultProductImages.length)];
+};
+
+
 const ProductFormModal = ({ isOpen, onClose, onSave, product }) => {
-    const [formData, setFormData] = useState(product || { name: '', flavor: '', price: 0, stock: 0, minStock: 10, imageUrl: '' });
+    const getInitialFormData = useCallback(() => {
+        // If editing an existing product, use its data.
+        // If its imageUrl is missing, provide a default one to fix it.
+        if (product) {
+            return { ...product, imageUrl: product.imageUrl || getRandomDefaultImage() };
+        }
+        // If creating a new product, provide a complete default structure.
+        return {
+            name: '',
+            flavor: '',
+            price: 0,
+            stock: 0,
+            minStock: 10,
+            imageUrl: getRandomDefaultImage()
+        };
+    }, [product]);
+
+    const [formData, setFormData] = useState(getInitialFormData());
 
     useEffect(() => {
-        setFormData(product || { name: '', flavor: '', price: 0, stock: 0, minStock: 10, imageUrl: 'https://picsum.photos/400/300' });
-    }, [product]);
+        // This effect resets the form state whenever the `product` prop changes,
+        // which happens when the modal is opened for a different product or for a new one.
+        setFormData(getInitialFormData());
+    }, [product, isOpen, getInitialFormData]);
+
 
     if (!isOpen) return null;
 

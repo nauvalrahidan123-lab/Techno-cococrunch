@@ -29,7 +29,7 @@ import "firebase/compat/firestore";
 //      - VITE_FIREBASE_APP_ID = "nilai_app_id_anda"
 //    - Simpan variabel-variabel tersebut. Vercel akan secara otomatis menyediakannya selama proses build.
 
-// FIX: Safely access environment variables to prevent runtime errors if import.meta.env is undefined.
+// Safely access environment variables.
 const env = (import.meta as any).env;
 
 const firebaseConfig = {
@@ -41,9 +41,39 @@ const firebaseConfig = {
   appId: env?.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+export let isFirebaseConfigured = true;
+let db: firebase.firestore.Firestore | null = null;
+let auth: firebase.auth.Auth | null = null;
+
+// FIX: Instead of throwing a crashing error, we now check for config and set a flag.
+// This allows the app to run in a "Demo Mode" with mock data if Firebase isn't configured.
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
+    isFirebaseConfigured = false;
+    // We still log a detailed warning to the console to guide the developer.
+    console.warn(
+        'Konfigurasi Firebase tidak ditemukan atau tidak lengkap! Aplikasi berjalan dalam MODE DEMO.\n\n' +
+        'Data tidak akan disimpan. Untuk fungsionalitas penuh, atur environment variables Anda:\n\n' +
+        'SOLUSI:\n' +
+        '1. Jika menjalankan secara lokal: Buat file bernama `.env.local` di folder utama proyek Anda.\n' +
+        '2. Salin-tempel (copy-paste) semua variabel dari `firebaseConfig` proyek Firebase Anda ke dalam file `.env.local` tersebut.\n' +
+        '   Contoh isi file `.env.local`:\n' +
+        '   VITE_FIREBASE_API_KEY="AIzaSy...YOUR_KEY"\n' +
+        '   VITE_FIREBASE_AUTH_DOMAIN="...your-project.firebaseapp.com"\n' +
+        '   VITE_FIREBASE_PROJECT_ID="...your-project-id"\n' +
+        '   VITE_FIREBASE_STORAGE_BUCKET="...your-project.appspot.com"\n' +
+        '   VITE_FIREBASE_MESSAGING_SENDER_ID="...your-sender-id"\n' +
+        '   VITE_FIREBASE_APP_ID="1:...:web:..."\n\n' +
+        '3. Jika men-deploy ke Vercel: Pastikan semua variabel di atas (diawali dengan VITE_) sudah ditambahkan di menu "Settings" > "Environment Variables" di dashboard Vercel Anda.\n\n' +
+        'Setelah melakukan perubahan, Anda mungkin perlu me-restart server pengembangan lokal Anda.'
+    );
 }
-export const db = firebase.firestore();
-export const auth = firebase.auth();
+
+
+// Initialize Firebase only if it's configured and hasn't been already.
+if (isFirebaseConfigured && !firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    auth = firebase.auth();
+}
+
+export { db, auth };
