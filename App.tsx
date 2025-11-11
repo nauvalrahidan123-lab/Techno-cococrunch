@@ -1,10 +1,12 @@
-// FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
+import { onAuthStateChanged } from 'firebase/auth'; // Import untuk cek auth
 
+import { auth } from './services/firebase'; // Import auth
 import { CartItem, Product } from './types';
 
+// Import Components and Pages
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ShopPage from './pages/ShopPage';
@@ -16,12 +18,43 @@ import AdminProductsPage from './pages/AdminProductsPage';
 import AdminSalesPage from './pages/AdminSalesPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 
+// Kunci untuk localStorage
+const CART_STORAGE_KEY = 'cococrunch_cart';
 
 function App() {
-    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    // 1. Inisialisasi state keranjang dari LocalStorage (Persistence)
+    const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+        const storedCart = localStorage.getItem(CART_STORAGE_KEY);
+        return storedCart ? JSON.parse(storedCart) : [];
+    });
+    
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true); // Status loading autentikasi
 
+    // 2. [PERBAIKAN]: Sinkronisasi cartItems ke LocalStorage
+    useEffect(() => {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    }, [cartItems]); // Jalankan setiap kali cartItems berubah
+
+    // 3. [PERBAIKAN]: Cek status autentikasi Firebase saat aplikasi dimuat
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User terautentikasi
+                setIsAuthenticated(true);
+            } else {
+                // User logout atau tidak terautentikasi
+                setIsAuthenticated(false);
+            }
+            setAuthLoading(false); // Selesai memuat status auth
+        });
+
+        return () => unsubscribe(); // Cleanup listener saat komponen dilepas
+    }, []);
+
+    // Logika Cart
     const addToCart = (product: Product) => {
+        // ... (Logika addToCart yang sudah ada, tidak perlu diubah) ...
         setCartItems(prevItems => {
             const itemInCart = prevItems.find(item => item.product.id === product.id);
             if (itemInCart) {
@@ -41,6 +74,7 @@ function App() {
     };
 
     const updateQuantity = (productId: string, quantity: number) => {
+        // ... (Logika updateQuantity yang sudah ada, tidak perlu diubah) ...
         setCartItems(prevItems => {
             const productInCart = prevItems.find(item => item.product.id === productId);
             if (productInCart && quantity > productInCart.product.stock) {
@@ -64,6 +98,11 @@ function App() {
     };
     
     const cartItemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
+
+    // Tampilkan loading saat mengecek status autentikasi
+    if (authLoading) {
+        return <div className="flex items-center justify-center min-h-screen text-lg">Memuat Autentikasi...</div>;
+    }
 
     return (
         <HashRouter>
