@@ -1,0 +1,92 @@
+import React, { useEffect, useState } from 'react';
+import { getOrders, getProducts } from '../services/firestoreService';
+import { Order, Product } from '../types';
+import { DollarSign, Package, AlertTriangle, Archive } from 'lucide-react'; // Using a popular icon library for variety
+
+const StatCard: React.FC<{ title: string; value: string; description: string; icon: React.ReactNode; color: string }> = ({ title, value, description, icon, color }) => (
+    <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200/80 flex items-start space-x-4">
+        <div className={`rounded-full p-3 ${color}`}>
+            {icon}
+        </div>
+        <div>
+            <h3 className="text-sm font-medium text-gray-500">{title}</h3>
+            <p className="text-3xl font-bold text-brand-dark mt-1">{value}</p>
+            <p className="text-sm text-gray-500 mt-2">{description}</p>
+        </div>
+    </div>
+);
+
+
+const AdminDashboardPage = () => {
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [orderData, productData] = await Promise.all([getOrders(), getProducts()]);
+                setOrders(orderData);
+                setProducts(productData);
+            } catch (error) {
+                console.error("Failed to fetch dashboard data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    if (loading) {
+        return <div>Loading dashboard...</div>;
+    }
+
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const lowStockProducts = products.filter(p => p.stock <= p.minStock).length;
+    const totalProducts = products.length;
+
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const revenueThisMonth = orders
+        .filter(order => new Date(order.date) >= startOfMonth)
+        .reduce((sum, order) => sum + order.total, 0);
+
+    return (
+        <div>
+            <h1 className="text-4xl font-bold font-display text-brand-dark mb-8">Dashboard</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <StatCard 
+                    title="Total Pendapatan"
+                    value={`Rp ${totalRevenue.toLocaleString('id-ID')}`}
+                    description="Dari semua penjualan"
+                    icon={<DollarSign className="text-green-800" />}
+                    color="bg-green-100"
+                />
+                <StatCard 
+                    title="Pendapatan Bulan Ini"
+                    value={`Rp ${revenueThisMonth.toLocaleString('id-ID')}`}
+                    description={`Sejak ${startOfMonth.toLocaleDateString('id-ID')}`}
+                    icon={<Package className="text-blue-800" />}
+                    color="bg-blue-100"
+                />
+                <StatCard 
+                    title="Produk Stok Menipis"
+                    value={lowStockProducts.toString()}
+                    description="Perlu segera restock"
+                    icon={<AlertTriangle className="text-red-800" />}
+                    color="bg-red-100"
+                />
+                <StatCard 
+                    title="Total Jenis Produk"
+                    value={totalProducts.toString()}
+                    description="Varian produk yang dijual"
+                    icon={<Archive className="text-yellow-800" />}
+                    color="bg-yellow-100"
+                />
+            </div>
+            {/* Add charts or recent activity here later */}
+        </div>
+    );
+};
+
+export default AdminDashboardPage;
