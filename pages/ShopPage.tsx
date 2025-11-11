@@ -3,21 +3,33 @@ import { getProducts } from '../services/firestoreService';
 import { Product } from '../types';
 import toast from 'react-hot-toast';
 
-const HeroSection = () => (
-    <div className="bg-white text-center py-16 px-4 sm:px-6 lg:px-8 rounded-2xl shadow-sm mb-12">
-        <h1 className="text-5xl font-display font-extrabold text-brand-dark tracking-tight">
-            Cemilan Favorit, Rasa Juara!
-        </h1>
-        <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-500">
-            Temukan kelezatan Cococrunch dan Basreng dalam berbagai varian rasa yang bikin nagih. Dibuat dari bahan berkualitas untukmu.
-        </p>
-        <div className="mt-8">
-            <a href="#produk" className="inline-block bg-brand-secondary text-white font-bold py-3 px-8 rounded-full hover:bg-amber-500 transition-transform transform hover:scale-105">
-                Lihat Produk
-            </a>
+const HeroSection = () => {
+    const handleScrollToProducts = () => {
+        const productsSection = document.getElementById('produk');
+        if (productsSection) {
+            productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+    return (
+        <div className="bg-white text-center py-16 px-4 sm:px-6 lg:px-8 rounded-2xl shadow-sm mb-12">
+            <h1 className="text-5xl font-display font-extrabold text-brand-dark tracking-tight">
+                Cemilan Favorit, Rasa Juara!
+            </h1>
+            <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-500">
+                Temukan kelezatan Cococrunch dan Basreng dalam berbagai varian rasa yang bikin nagih. Dibuat dari bahan berkualitas untukmu.
+            </p>
+            <div className="mt-8">
+                <button 
+                    onClick={handleScrollToProducts}
+                    className="inline-block bg-brand-secondary text-white font-bold py-3 px-8 rounded-full hover:bg-amber-500 transition-transform transform hover:scale-105"
+                >
+                    Lihat Produk
+                </button>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const ProductCard: React.FC<{ product: Product; addToCart: (product: Product) => void; }> = ({ product, addToCart }) => {
     const stockColor = product.stock <= product.minStock ? 'text-red-500' : 'text-green-600';
