@@ -1,5 +1,9 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+// FIX: The original imports for `initializeApp` and `getAuth` are for Firebase v9+, but the error message "has no exported member"
+// strongly suggests an older version of Firebase (like v8) is installed.
+// We will switch to the v8 compatibility library to match the likely environment.
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 
 // ====================================================================================
 // PENTING: Konfigurasi Kunci API Serverless untuk Vercel
@@ -38,5 +42,8 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+export const db = firebase.firestore();
+export const auth = firebase.auth();
