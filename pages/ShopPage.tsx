@@ -102,8 +102,12 @@ const ShopPage: React.FC<{ addToCart: (product: Product) => void; }> = ({ addToC
             try {
                 const productList = await getProducts();
                 setProducts(productList);
-            } catch (error) {
-                toast.error('Gagal memuat produk.');
+            } catch (error: any) {
+                if (error.message && error.message.toLowerCase().includes('permission')) {
+                    toast.error('Gagal memuat produk: Aturan keamanan Firestore menolak akses. Silakan periksa konfigurasi di Firebase Console Anda.', { duration: 6000 });
+                } else {
+                    toast.error('Gagal memuat produk.');
+                }
                 console.error("Error fetching products: ", error);
             } finally {
                 setLoading(false);

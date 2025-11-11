@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Employee, Attendance } from '../types';
 import { getEmployees, addEmployee, updateEmployee, deleteEmployee, getAttendance, addAttendance } from '../services/firestoreService';
@@ -58,8 +59,12 @@ const AdminEmployeesPage = () => {
             const [empData, attData] = await Promise.all([getEmployees(), getAttendance()]);
             setEmployees(empData);
             setAttendance(attData);
-        } catch (error) {
-            toast.error('Gagal memuat data.');
+        } catch (error: any) {
+            if (error.message && error.message.toLowerCase().includes('permission')) {
+                toast.error('Gagal memuat data: Periksa aturan keamanan Firestore Anda.', { duration: 6000 });
+            } else {
+                toast.error('Gagal memuat data.');
+            }
         } finally {
             setLoading(false);
         }

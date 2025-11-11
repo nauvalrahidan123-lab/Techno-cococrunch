@@ -17,8 +17,12 @@ const AdminSalesPage = () => {
                 const [orderData, productData] = await Promise.all([getOrders(), getProducts()]);
                 setOrders(orderData);
                 setProducts(productData);
-            } catch (error) {
-                toast.error("Gagal memuat data penjualan.");
+            } catch (error: any) {
+                if (error.message && error.message.toLowerCase().includes('permission')) {
+                    toast.error('Gagal memuat data penjualan: Periksa aturan keamanan Firestore Anda.', { duration: 6000 });
+                } else {
+                    toast.error("Gagal memuat data penjualan.");
+                }
             } finally {
                 setLoading(false);
             }

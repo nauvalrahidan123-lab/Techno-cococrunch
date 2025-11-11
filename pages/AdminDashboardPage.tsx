@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getOrders, getProducts } from '../services/firestoreService';
 import { Order, Product } from '../types';
 import { DollarSign, Package, AlertTriangle, Archive } from 'lucide-react'; // Using a popular icon library for variety
+import toast from 'react-hot-toast';
 
 const StatCard: React.FC<{ title: string; value: string; description: string; icon: React.ReactNode; color: string }> = ({ title, value, description, icon, color }) => (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200/80 flex items-start space-x-4">
@@ -28,7 +29,12 @@ const AdminDashboardPage = () => {
                 const [orderData, productData] = await Promise.all([getOrders(), getProducts()]);
                 setOrders(orderData);
                 setProducts(productData);
-            } catch (error) {
+            } catch (error: any) {
+                if (error.message && error.message.toLowerCase().includes('permission')) {
+                    toast.error('Gagal memuat data dashboard: Periksa aturan keamanan Firestore Anda.', { duration: 6000 });
+                } else {
+                    toast.error('Gagal memuat data dashboard.');
+                }
                 console.error("Failed to fetch dashboard data", error);
             } finally {
                 setLoading(false);
