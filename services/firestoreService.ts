@@ -1,113 +1,138 @@
 
-import { Product, Order, Employee, Attendance } from '../types';
+import { db } from './firebase';
+// FIX: Update imports and functions to use Firebase v8 compat API, matching the change in `firebase.ts`.
+import firebase from 'firebase/compat/app';
+import { Product, Order, Employee, Attendance, CartItem } from '../types';
 
-// ============================================================================
-// MOCK DATABASE - This simulates a serverless DB like Firestore for demo purposes.
-// In a real application, you would replace these arrays and functions with
-// actual calls to Firebase Firestore SDK (e.g., using `getDocs`, `addDoc`, etc.).
-// ============================================================================
+// Helper function to convert Firestore doc to Product type
+const toProduct = (doc: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>): Product => ({ ...doc.data() as Omit<Product, 'id'>, id: doc.id });
 
-let mockProducts: Product[] = [
-  { id: 'p1', name: 'Cococrunch', flavor: 'Cokelat Original', price: 15000, stock: 120, minStock: 20, imageUrl: 'https://picsum.photos/id/10/400/300' },
-  { id: 'p2', name: 'Cococrunch', flavor: 'Strawberry', price: 16000, stock: 80, minStock: 20, imageUrl: 'https://picsum.photos/id/20/400/300' },
-  { id: 'p3', name: 'Basreng', flavor: 'Pedas Daun Jeruk', price: 12000, stock: 15, minStock: 25, imageUrl: 'https://picsum.photos/id/30/400/300' },
-  { id: 'p4', name: 'Basreng', flavor: 'Original Asin', price: 10000, stock: 200, minStock: 25, imageUrl: 'https://picsum.photos/id/40/400/300' },
-];
+// Helper function to convert Firestore doc to Order type (handles Timestamp)
+const toOrder = (doc: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>): Order => {
+    const data = doc.data();
+    return {
+        ...data as Omit<Order, 'id' | 'date'>,
+        id: doc.id,
+        date: (data.date as firebase.firestore.Timestamp).toDate() // Convert Firestore Timestamp to JS Date
+    };
+};
 
-let mockOrders: Order[] = [
-    // Mock orders will be added dynamically
-];
+// Helper function to convert Firestore doc to Employee type
+const toEmployee = (doc: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>): Employee => ({ ...doc.data() as Omit<Employee, 'id'>, id: doc.id });
 
-let mockEmployees: Employee[] = [
-  { id: 'e1', name: 'Budi Santoso', position: 'Manajer Produksi', baseSalary: 5000000 },
-  { id: 'e2', name: 'Siti Aminah', position: 'Staf Pemasaran', baseSalary: 4000000 },
-];
-
-let mockAttendance: Attendance[] = [
-    { id: 'a1', employeeId: 'e1', employeeName: 'Budi Santoso', date: new Date(new Date().setDate(new Date().getDate() - 1)), status: 'Hadir' },
-    { id: 'a2', employeeId: 'e2', employeeName: 'Siti Aminah', date: new Date(new Date().setDate(new Date().getDate() - 1)), status: 'Hadir' },
-    { id: 'a3', employeeId: 'e1', employeeName: 'Budi Santoso', date: new Date(), status: 'Hadir' },
-];
-
-const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper function to convert Firestore doc to Attendance type (handles Timestamp)
+const toAttendance = (doc: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>): Attendance => {
+    const data = doc.data();
+    return {
+        ...data as Omit<Attendance, 'id' | 'date'>,
+        id: doc.id,
+        date: (data.date as firebase.firestore.Timestamp).toDate()
+    };
+};
 
 // --- Product Functions ---
 export const getProducts = async (): Promise<Product[]> => {
-  await simulateDelay(500);
-  return [...mockProducts];
+    const productsCol = db.collection('products');
+    const productSnapshot = await productsCol.get();
+    return productSnapshot.docs.map(toProduct);
 };
 
-export const addProduct = async (product: Omit<Product, 'id'>): Promise<Product> => {
-    await simulateDelay(500);
-    const newProduct: Product = { ...product, id: `p${Date.now()}` };
-    mockProducts.push(newProduct);
-    return newProduct;
+export const addProduct = async (productData: Omit<Product, 'id'>): Promise<Product> => {
+    const productsCol = db.collection('products');
+    const docRef = await productsCol.add(productData);
+    return { ...productData, id: docRef.id };
 };
 
 export const updateProduct = async (updatedProduct: Product): Promise<Product> => {
-    await simulateDelay(500);
-    mockProducts = mockProducts.map(p => p.id === updatedProduct.id ? updatedProduct : p);
+    const productDoc = db.collection('products').doc(updatedProduct.id);
+    const { id, ...productData } = updatedProduct; // Firestore update doesn't need the id in the data
+    await productDoc.update(productData);
     return updatedProduct;
 };
 
 export const deleteProduct = async (productId: string): Promise<void> => {
-    await simulateDelay(500);
-    mockProducts = mockProducts.filter(p => p.id !== productId);
+    const productDoc = db.collection('products').doc(productId);
+    await productDoc.delete();
 };
 
 
 // --- Order Functions ---
 export const getOrders = async (): Promise<Order[]> => {
-    await simulateDelay(500);
-    return [...mockOrders].sort((a, b) => b.date.getTime() - a.date.getTime());
+    const ordersCol = db.collection('orders');
+    const orderSnapshot = await ordersCol.get();
+    const orders = orderSnapshot.docs.map(toOrder);
+    return orders.sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by most recent
 };
 
-export const addOrder = async (order: Omit<Order, 'id' | 'date'>): Promise<Order> => {
-    await simulateDelay(800);
-    const newOrder: Order = { ...order, id: `o${Date.now()}`, date: new Date() };
-    mockOrders.push(newOrder);
-    // Simulate stock reduction
-    order.items.forEach(item => {
-        const product = mockProducts.find(p => p.id === item.product.id);
-        if (product) {
-            product.stock -= item.quantity;
-        }
+export const addOrder = async (orderData: Omit<Order, 'id' | 'date'>): Promise<Order> => {
+    // Use a batch write to ensure order is created AND stock is updated atomically
+    const batch = db.batch();
+    
+    // 1. Create a new document reference for the order
+    const newOrderRef = db.collection('orders').doc();
+
+    const newOrderPayload = {
+        ...orderData,
+        date: firebase.firestore.Timestamp.fromDate(new Date()) // Store as Firestore Timestamp
+    };
+    batch.set(newOrderRef, newOrderPayload);
+
+    // 2. Update stock for each product in the order
+    orderData.items.forEach((item: CartItem) => {
+        const productRef = db.collection('products').doc(item.product.id);
+        const newStock = item.product.stock - item.quantity;
+        batch.update(productRef, { stock: newStock });
     });
-    return newOrder;
+
+    // 3. Commit the batch
+    await batch.commit();
+
+    return { 
+        ...orderData,
+        id: newOrderRef.id,
+        date: newOrderPayload.date.toDate() // Return with JS Date
+    };
 };
 
 // --- Employee Functions ---
 export const getEmployees = async (): Promise<Employee[]> => {
-    await simulateDelay(500);
-    return [...mockEmployees];
+    const employeesCol = db.collection('employees');
+    const employeeSnapshot = await employeesCol.get();
+    return employeeSnapshot.docs.map(toEmployee);
 };
-export const addEmployee = async (employee: Omit<Employee, 'id'>): Promise<Employee> => {
-    await simulateDelay(500);
-    const newEmployee: Employee = { ...employee, id: `e${Date.now()}` };
-    mockEmployees.push(newEmployee);
-    return newEmployee;
+
+export const addEmployee = async (employeeData: Omit<Employee, 'id'>): Promise<Employee> => {
+    const employeesCol = db.collection('employees');
+    const docRef = await employeesCol.add(employeeData);
+    return { ...employeeData, id: docRef.id };
 };
 
 export const updateEmployee = async (updatedEmployee: Employee): Promise<Employee> => {
-    await simulateDelay(500);
-    mockEmployees = mockEmployees.map(e => e.id === updatedEmployee.id ? updatedEmployee : e);
+    const employeeDoc = db.collection('employees').doc(updatedEmployee.id);
+    const { id, ...employeeData } = updatedEmployee;
+    await employeeDoc.update(employeeData);
     return updatedEmployee;
 };
 
 export const deleteEmployee = async (employeeId: string): Promise<void> => {
-    await simulateDelay(500);
-    mockEmployees = mockEmployees.filter(e => e.id !== employeeId);
+    const employeeDoc = db.collection('employees').doc(employeeId);
+    await employeeDoc.delete();
 };
 
 // --- Attendance Functions ---
 export const getAttendance = async (): Promise<Attendance[]> => {
-    await simulateDelay(500);
-    return [...mockAttendance].sort((a, b) => b.date.getTime() - a.date.getTime());
+    const attendanceCol = db.collection('attendance');
+    const attendanceSnapshot = await attendanceCol.get();
+    const attendances = attendanceSnapshot.docs.map(toAttendance);
+    return attendances.sort((a, b) => b.date.getTime() - a.date.getTime());
 };
 
-export const addAttendance = async (attendance: Omit<Attendance, 'id'>): Promise<Attendance> => {
-    await simulateDelay(500);
-    const newAttendance: Attendance = { ...attendance, id: `a${Date.now()}` };
-    mockAttendance.push(newAttendance);
-    return newAttendance;
+export const addAttendance = async (attendanceData: Omit<Attendance, 'id'>): Promise<Attendance> => {
+    const attendanceCol = db.collection('attendance');
+    const payload = {
+        ...attendanceData,
+        date: firebase.firestore.Timestamp.fromDate(attendanceData.date) // Store as Timestamp
+    };
+    const docRef = await attendanceCol.add(payload);
+    return { ...attendanceData, id: docRef.id };
 };
