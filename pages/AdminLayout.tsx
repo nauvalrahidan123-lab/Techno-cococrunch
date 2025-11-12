@@ -1,6 +1,5 @@
-
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
-import React, from 'react';
+import React from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
 
