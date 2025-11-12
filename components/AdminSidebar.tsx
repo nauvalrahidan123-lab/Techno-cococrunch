@@ -1,4 +1,3 @@
-
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -14,8 +13,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ onLogout }) => {
 
     const handleLogout = () => {
         onLogout();
-        // Navigate to the login page after state has been updated
-        navigate('/admin');
+        // Navigate to the homepage after logging out
+        navigate('/');
     };
 
     const linkClasses = "flex items-center px-4 py-3 text-gray-600 transition-colors duration-200 transform rounded-lg hover:bg-gray-200 hover:text-gray-700";
