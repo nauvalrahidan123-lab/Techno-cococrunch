@@ -1,27 +1,21 @@
+
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { DashboardIcon, ProductsIcon, SalesIcon, EmployeesIcon, LogoutIcon, InfoIcon } from './icons';
-import { auth } from '../services/firebase';
-import { signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
-const AdminSidebar: React.FC = () => {
+interface AdminSidebarProps {
+    onLogout: () => void;
+}
+
+const AdminSidebar: React.FC<AdminSidebarProps> = ({ onLogout }) => {
     const navigate = useNavigate();
 
-    const handleLogout = async () => {
-        if (auth) {
-            try {
-                await signOut(auth);
-                toast.success('Anda telah logout.');
-                navigate('/'); // Redirect to the main shop page after logout
-            } catch (error) {
-                toast.error('Gagal untuk logout.');
-            }
-        } else {
-            // Fallback for demo mode
-            navigate('/');
-        }
+    const handleLogout = () => {
+        onLogout();
+        // Navigate to the login page after state has been updated
+        navigate('/admin');
     };
 
     const linkClasses = "flex items-center px-4 py-3 text-gray-600 transition-colors duration-200 transform rounded-lg hover:bg-gray-200 hover:text-gray-700";

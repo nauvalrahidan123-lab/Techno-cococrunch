@@ -1,10 +1,11 @@
+
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
-import { onAuthStateChanged } from 'firebase/auth';
+import { AlertTriangle } from 'lucide-react';
 
-import { auth } from './services/firebase';
+import { isFirebaseConfigured } from './services/firebase';
 import { CartItem, Product } from './types';
 
 import Header from './components/Header';
@@ -19,17 +20,27 @@ import AdminSalesPage from './pages/AdminSalesPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import AdminBusinessInfoPage from './pages/AdminBusinessInfoPage';
 
-const LoadingSpinner = () => (
-    <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl font-semibold text-gray-600">Memuat Aplikasi...</div>
-    </div>
-);
+const DemoModeBanner = () => {
+    if (isFirebaseConfigured) {
+        return null;
+    }
 
+    return (
+        <div className="bg-amber-400 text-amber-900 font-bold p-3 text-center flex items-center justify-center gap-2">
+            <AlertTriangle size={18} />
+            <span>Mode Demo Aktif. Perubahan tidak akan disimpan.</span>
+        </div>
+    );
+};
 
 function App() {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [authChecked, setAuthChecked] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        // In demo mode, user is always authenticated.
+        if (!isFirebaseConfigured) return true;
+        // Otherwise, check session storage for login state.
+        return sessionStorage.getItem('isAdminAuthenticated') === 'true';
+    });
     const [userId, setUserId] = useState<string>('');
 
     useEffect(() => {
@@ -41,18 +52,25 @@ function App() {
         setUserId(sessionUserId);
     }, []);
     
-    useEffect(() => {
-        // Since firebase.ts will now throw an error if initialization fails,
-        // we can safely assume 'auth' is available here and listen for changes.
-        const unsubscribe = onAuthStateChanged(auth, user => {
-            setIsAuthenticated(!!user);
-            setAuthChecked(true);
-        });
-        
-        // Cleanup subscription on unmount
-        return () => unsubscribe();
-    }, []);
+    const handleLogin = (password: string) => {
+        // This is the single password to access the admin panel.
+        // For better security, this should be stored in an environment variable.
+        const ADMIN_PASSWORD = 'admin';
 
+        if (password === ADMIN_PASSWORD) {
+            setIsAuthenticated(true);
+            sessionStorage.setItem('isAdminAuthenticated', 'true');
+            toast.success('Sandi benar! Selamat datang.');
+        } else {
+            toast.error('Sandi yang Anda masukkan salah.');
+        }
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('isAdminAuthenticated');
+        toast.success('Anda telah logout.');
+    };
 
     const addToCart = (product: Product) => {
         setCartItems(prevItems => {
@@ -98,29 +116,24 @@ function App() {
     
     const cartItemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
-    if (!authChecked) {
-        return <LoadingSpinner />;
-    }
-
     return (
         <HashRouter>
             <Toaster position="top-center" reverseOrder={false} />
+            <DemoModeBanner />
             <Routes>
                 {/* Admin Routes */}
-                <Route path="/admin" element={!isAuthenticated ? <AdminLoginPage /> : <Navigate to="/admin/dashboard" replace />} />
+                <Route path="/admin" element={!isAuthenticated ? <AdminLoginPage onLogin={handleLogin} /> : <Navigate to="/admin/dashboard" replace />} />
                 
                 {/* Protected Admin Routes */}
-                {isAuthenticated && (
-                    <Route path="/admin/*" element={<AdminLayout isAuth={isAuthenticated} />}>
-                        <Route path="dashboard" element={<AdminDashboardPage />} />
-                        <Route path="products" element={<AdminProductsPage />} />
-                        <Route path="sales" element={<AdminSalesPage />} />
-                        <Route path="employees" element={<AdminEmployeesPage />} />
-                        <Route path="business-info" element={<AdminBusinessInfoPage />} />
-                        {/* Redirect any other /admin path to dashboard */}
-                        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-                    </Route>
-                )}
+                <Route path="/admin/*" element={isAuthenticated ? <AdminLayout isAuth={isAuthenticated} onLogout={handleLogout} /> : <Navigate to="/admin" replace />}>
+                    <Route path="dashboard" element={<AdminDashboardPage />} />
+                    <Route path="products" element={<AdminProductsPage />} />
+                    <Route path="sales" element={<AdminSalesPage />} />
+                    <Route path="employees" element={<AdminEmployeesPage />} />
+                    <Route path="business-info" element={<AdminBusinessInfoPage />} />
+                    {/* Redirect any other /admin path to dashboard */}
+                    <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+                </Route>
                 
                 {/* Customer Facing Routes */}
                 <Route path="/*" element={

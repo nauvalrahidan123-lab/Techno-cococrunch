@@ -1,8 +1,9 @@
-import { initializeApp, FirebaseApp } from "firebase/app";
+import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
 // Konfigurasi ini sekarang berisi kredensial asli dari proyek Firebase Anda.
+// Ini akan menghubungkan aplikasi ke database Anda.
 const firebaseConfig = {
   apiKey: "AIzaSyD1XcritWqOqugz6UyAvQf3baBiwiZPXaw",
   authDomain: "cococrunch-7f0b6.firebaseapp.com",
@@ -14,27 +15,40 @@ const firebaseConfig = {
 };
 
 
-// Inisialisasi Firebase.
-// Pola ini lebih sederhana dan lebih andal untuk memastikan layanan diekspor 
-// hanya setelah inisialisasi berhasil. Jika gagal, aplikasi akan berhenti
-// dan menampilkan layar error yang jelas, yang lebih baik untuk debugging.
 let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
+let isFirebaseConfigured = false;
 
+// Robust initialization logic using modern v9+ syntax
 try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-} catch (error) {
-    console.error("KRITIS: Inisialisasi Firebase Gagal!", error);
-    console.error(
-      "Pastikan kredensial di `services/firebase.ts` sudah benar dan " +
-      "sesuai dengan proyek Firebase Anda di console.firebase.google.com"
-    );
-    // Melemparkan error akan menghentikan aplikasi dan ditangkap oleh ErrorBoundary,
-    // yang akan menunjukkan masalahnya dengan jelas kepada pengembang.
-    throw new Error("Gagal menginisialisasi Firebase. Aplikasi tidak dapat berjalan.");
+  // 1. Check if the configuration looks like a placeholder.
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("GANTI_DENGAN")) {
+    throw new Error("Konfigurasi Firebase masih menggunakan placeholder. Harap ganti dengan kredensial asli Anda.");
+  }
+  
+  // 2. Initialize the app, or get the existing one if it's already initialized.
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  
+  // 3. If the app is successfully initialized, get the Firestore and Auth services.
+  db = getFirestore(app);
+  auth = getAuth(app);
+  isFirebaseConfigured = true;
+
+} catch (error: any) {
+  // 4. If any part of the initialization fails, catch the error.
+  isFirebaseConfigured = false;
+  db = null;
+  auth = null;
+  
+  // Provide a much more helpful error message in the developer console.
+  console.error("KRITIS: Inisialisasi Firebase Gagal!", error);
+  console.warn(
+    'Aplikasi sekarang berjalan dalam MODE DEMO.\n\n' +
+    'PENYEBAB UTAMA: Objek `firebaseConfig` di dalam file `services/firebase.ts` kemungkinan besar salah atau belum diganti. ' +
+    'Ini adalah langkah paling penting. Anda HARUS menggantinya dengan kredensial dari proyek Firebase Anda sendiri untuk melanjutkan.'
+  );
 }
 
-export { db, auth };
+// 5. Export the initialized services (or null if initialization failed).
+export { db, auth, isFirebaseConfigured };
