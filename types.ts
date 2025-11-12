@@ -16,11 +16,13 @@ export interface CartItem {
 
 export interface Order {
   id: string;
-
+  userId: string; // ID unik untuk setiap sesi pengguna
   items: CartItem[];
   total: number;
   customerName: string;
   customerAddress: string;
+  customerWhatsapp: string; // Nomor WhatsApp untuk pre-order
+  paymentMethod: 'Tunai' | 'Transfer'; // Metode Pembayaran
   date: Date;
 }
 
@@ -37,4 +39,13 @@ export interface Attendance {
   employeeName: string;
   date: Date;
   status: 'Hadir' | 'Sakit' | 'Izin';
+}
+
+export interface BusinessInfo {
+  id: string; // Should be a singleton document, e.g., 'main'
+  name: string;
+  tagline: string;
+  instagramUrl: string;
+  tiktokUrl: string;
+  whatsappNumber: string; // e.g., 6281234567890
 }

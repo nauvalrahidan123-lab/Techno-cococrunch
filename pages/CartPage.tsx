@@ -1,5 +1,6 @@
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
-import React, { useState, useMemo, useEffect } from 'react';
+// FIX: Imported useState and useMemo from React to resolve 'Cannot find name' errors.
+import React, { useState, useMemo } from 'react';
 import { CartItem } from '../types';
 import { Link, useNavigate } from 'react-router-dom';
 import { addOrder } from '../services/firestoreService';
@@ -7,6 +8,9 @@ import toast from 'react-hot-toast';
 
 const CheckoutConfirmationModal = ({ isOpen, onClose, onConfirm, orderDetails, isProcessing }) => {
     if (!isOpen) return null;
+
+    // IMPORTANT: Replace this placeholder with your actual QRIS DANA image URL
+    const qrisImageUrl = 'https://i.ibb.co/3k5g2F5/qris-dana-placeholder.png';
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
@@ -21,11 +25,22 @@ const CheckoutConfirmationModal = ({ isOpen, onClose, onConfirm, orderDetails, i
                             ))}
                         </ul>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-gray-800">Alamat Pengiriman:</h3>
+                     <div>
+                        <h3 className="font-semibold text-gray-800">Detail Kontak & Pengiriman:</h3>
                         <p>{orderDetails.customerName}</p>
                         <p>{orderDetails.customerAddress}</p>
+                        <p>WhatsApp: {orderDetails.customerWhatsapp}</p>
                     </div>
+
+                    {orderDetails.paymentMethod === 'Transfer' && (
+                        <div className="text-center p-4 bg-blue-50 rounded-lg">
+                            <h3 className="font-semibold text-brand-dark">Scan untuk Membayar</h3>
+                            <p className="text-sm mb-2">Gunakan aplikasi DANA atau e-wallet lain untuk scan QRIS di bawah ini.</p>
+                            <img src={qrisImageUrl} alt="QRIS DANA" className="w-48 h-48 mx-auto rounded-md shadow-sm" />
+                            <p className="text-xs text-gray-500 mt-2">Setelah membayar, pesanan akan segera kami proses.</p>
+                        </div>
+                    )}
+
                      <div className="border-t pt-4 mt-4 space-y-2">
                         <div className="flex justify-between"><span>Subtotal</span> <span>Rp {orderDetails.subtotal.toLocaleString('id-ID')}</span></div>
                         <div className="flex justify-between"><span>Pengiriman</span> <span>Rp {orderDetails.shipping.toLocaleString('id-ID')}</span></div>
@@ -36,7 +51,7 @@ const CheckoutConfirmationModal = ({ isOpen, onClose, onConfirm, orderDetails, i
                 <div className="flex justify-end mt-8 space-x-4">
                     <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300">Batal</button>
                     <button type="button" onClick={onConfirm} disabled={isProcessing} className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400">
-                        {isProcessing ? 'Memproses...' : 'Konfirmasi & Bayar'}
+                        {isProcessing ? 'Memproses...' : 'Konfirmasi Pesanan'}
                     </button>
                 </div>
             </div>
@@ -49,9 +64,9 @@ const CheckoutConfirmationModal = ({ isOpen, onClose, onConfirm, orderDetails, i
 // This ensures that if an image URL is invalid, it reliably falls back to a placeholder.
 const CartItemRow: React.FC<{ item: CartItem; updateQuantity: (productId: string, quantity: number) => void; removeFromCart: (productId: string) => void; }> = ({ item, updateQuantity, removeFromCart }) => {
     const placeholderImage = 'https://images.unsplash.com/photo-1582213794353-764536d3969a?q=80&w=400&h=300&fit=crop';
-    const [imageSrc, setImageSrc] = useState(item.product.imageUrl || placeholderImage);
+    const [imageSrc, setImageSrc] = React.useState(item.product.imageUrl || placeholderImage);
 
-    useEffect(() => {
+    React.useEffect(() => {
         setImageSrc(item.product.imageUrl || placeholderImage);
     }, [item.product.imageUrl]);
 
@@ -89,10 +104,12 @@ const CartItemRow: React.FC<{ item: CartItem; updateQuantity: (productId: string
 };
 
 
-const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: string, quantity: number) => void; removeFromCart: (productId: string) => void; clearCart: () => void; }> = ({ cartItems, updateQuantity, removeFromCart, clearCart }) => {
+const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: string, quantity: number) => void; removeFromCart: (productId: string) => void; clearCart: () => void; userId: string; }> = ({ cartItems, updateQuantity, removeFromCart, clearCart, userId }) => {
     const navigate = useNavigate();
     const [customerName, setCustomerName] = useState('');
     const [customerAddress, setCustomerAddress] = useState('');
+    const [customerWhatsapp, setCustomerWhatsapp] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState<'Tunai' | 'Transfer'>('Tunai');
     const [isProcessing, setIsProcessing] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -106,8 +123,8 @@ const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: st
     
     const handleProceedToCheckout = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!customerName || !customerAddress) {
-            toast.error("Nama dan alamat harus diisi.");
+        if (!customerName || !customerAddress || !customerWhatsapp) {
+            toast.error("Semua field detail pelanggan harus diisi.");
             return;
         }
         setIsModalOpen(true);
@@ -117,10 +134,13 @@ const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: st
         setIsProcessing(true);
         try {
             const newOrder = await addOrder({
+                userId,
                 items: cartItems,
                 total: grandTotal,
                 customerName,
                 customerAddress,
+                customerWhatsapp,
+                paymentMethod,
             });
             toast.success(`Pesanan #${newOrder.id} berhasil dibuat!`);
             clearCart();
@@ -161,15 +181,34 @@ const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: st
                     <div className="w-full lg:w-1/3 mt-8 lg:mt-0">
                         <form onSubmit={handleProceedToCheckout} className="bg-white shadow-lg rounded-xl p-6 sticky top-28">
                             <h2 className="text-2xl font-bold font-display mb-6 text-brand-dark">Ringkasan & Pengiriman</h2>
-                            <div className="mb-4">
-                                <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-                                <input type="text" id="customerName" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                            <div className="space-y-4">
+                                <div>
+                                    <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                                    <input type="text" id="customerName" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                                </div>
+                                <div>
+                                    <label htmlFor="customerAddress" className="block text-sm font-medium text-gray-700 mb-1">Alamat Pengiriman</label>
+                                    <textarea id="customerAddress" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" rows={3} required></textarea>
+                                </div>
+                                 <div>
+                                    <label htmlFor="customerWhatsapp" className="block text-sm font-medium text-gray-700 mb-1">Nomor WhatsApp</label>
+                                    <input type="tel" id="customerWhatsapp" value={customerWhatsapp} onChange={e => setCustomerWhatsapp(e.target.value)} placeholder="cth: 081234567890" className="w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Metode Pembayaran</label>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center p-3 border rounded-md has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-400">
+                                            <input type="radio" name="paymentMethod" value="Tunai" checked={paymentMethod === 'Tunai'} onChange={() => setPaymentMethod('Tunai')} className="mr-2" />
+                                            Bayar Tunai (COD)
+                                        </label>
+                                        <label className="flex items-center p-3 border rounded-md has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-400">
+                                            <input type="radio" name="paymentMethod" value="Transfer" checked={paymentMethod === 'Transfer'} onChange={() => setPaymentMethod('Transfer')} className="mr-2" />
+                                            Transfer (QRIS)
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="mb-6">
-                                <label htmlFor="customerAddress" className="block text-sm font-medium text-gray-700 mb-1">Alamat Pengiriman</label>
-                                <textarea id="customerAddress" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm" rows={3} required></textarea>
-                            </div>
-                             <div className="space-y-2 border-t pt-4">
+                             <div className="space-y-2 border-t pt-4 mt-6">
                                 <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>Rp {subtotal.toLocaleString('id-ID')}</span></div>
                                 <div className="flex justify-between text-gray-600"><span>Biaya Pengiriman</span><span>Rp {shipping.toLocaleString('id-ID')}</span></div>
                                 <div className="flex justify-between text-gray-600"><span>Pajak (11%)</span><span>Rp {tax.toLocaleString('id-ID')}</span></div>
@@ -187,7 +226,7 @@ const CartPage: React.FC<{ cartItems: CartItem[]; updateQuantity: (productId: st
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={handleConfirmCheckout}
                 isProcessing={isProcessing}
-                orderDetails={{ items: cartItems, customerName, customerAddress, subtotal, shipping, tax, grandTotal }}
+                orderDetails={{ items: cartItems, customerName, customerAddress, customerWhatsapp, paymentMethod, subtotal, shipping, tax, grandTotal }}
             />
         </div>
     );

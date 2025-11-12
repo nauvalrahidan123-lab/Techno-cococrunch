@@ -1,10 +1,10 @@
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
-import { AlertTriangle } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
 
-import { isFirebaseConfigured } from './services/firebase';
+import { auth } from './services/firebase';
 import { CartItem, Product } from './types';
 
 import Header from './components/Header';
@@ -17,24 +17,42 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminSalesPage from './pages/AdminSalesPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
+import AdminBusinessInfoPage from './pages/AdminBusinessInfoPage';
 
-const DemoModeBanner = () => {
-    if (isFirebaseConfigured) {
-        return null;
-    }
+const LoadingSpinner = () => (
+    <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl font-semibold text-gray-600">Memuat Aplikasi...</div>
+    </div>
+);
 
-    return (
-        <div className="bg-amber-400 text-amber-900 font-bold p-3 text-center flex items-center justify-center gap-2">
-            <AlertTriangle size={18} />
-            <span>Mode Demo Aktif. Perubahan tidak akan disimpan.</span>
-        </div>
-    );
-};
 
 function App() {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
-    // In Demo mode, let's start as authenticated to allow exploring the admin panel.
-    const [isAuthenticated, setIsAuthenticated] = useState(!isFirebaseConfigured);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false);
+    const [userId, setUserId] = useState<string>('');
+
+    useEffect(() => {
+        let sessionUserId = localStorage.getItem('sessionUserId');
+        if (!sessionUserId) {
+            sessionUserId = crypto.randomUUID();
+            localStorage.setItem('sessionUserId', sessionUserId);
+        }
+        setUserId(sessionUserId);
+    }, []);
+    
+    useEffect(() => {
+        // Since firebase.ts will now throw an error if initialization fails,
+        // we can safely assume 'auth' is available here and listen for changes.
+        const unsubscribe = onAuthStateChanged(auth, user => {
+            setIsAuthenticated(!!user);
+            setAuthChecked(true);
+        });
+        
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, []);
+
 
     const addToCart = (product: Product) => {
         setCartItems(prevItems => {
@@ -80,19 +98,29 @@ function App() {
     
     const cartItemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
+    if (!authChecked) {
+        return <LoadingSpinner />;
+    }
+
     return (
         <HashRouter>
             <Toaster position="top-center" reverseOrder={false} />
-            <DemoModeBanner />
             <Routes>
                 {/* Admin Routes */}
-                <Route path="/admin" element={!isAuthenticated ? <AdminLoginPage setAuth={setIsAuthenticated} /> : <Navigate to="/admin/dashboard" />} />
-                <Route path="/admin/*" element={<AdminLayout isAuth={isAuthenticated} setAuth={setIsAuthenticated} />}>
-                    <Route path="dashboard" element={<AdminDashboardPage />} />
-                    <Route path="products" element={<AdminProductsPage />} />
-                    <Route path="sales" element={<AdminSalesPage />} />
-                    <Route path="employees" element={<AdminEmployeesPage />} />
-                </Route>
+                <Route path="/admin" element={!isAuthenticated ? <AdminLoginPage /> : <Navigate to="/admin/dashboard" replace />} />
+                
+                {/* Protected Admin Routes */}
+                {isAuthenticated && (
+                    <Route path="/admin/*" element={<AdminLayout isAuth={isAuthenticated} />}>
+                        <Route path="dashboard" element={<AdminDashboardPage />} />
+                        <Route path="products" element={<AdminProductsPage />} />
+                        <Route path="sales" element={<AdminSalesPage />} />
+                        <Route path="employees" element={<AdminEmployeesPage />} />
+                        <Route path="business-info" element={<AdminBusinessInfoPage />} />
+                        {/* Redirect any other /admin path to dashboard */}
+                        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+                    </Route>
+                )}
                 
                 {/* Customer Facing Routes */}
                 <Route path="/*" element={
@@ -101,7 +129,9 @@ function App() {
                         <main className="flex-grow">
                             <Routes>
                                 <Route path="/" element={<ShopPage addToCart={addToCart} />} />
-                                <Route path="/cart" element={<CartPage cartItems={cartItems} updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart} />} />
+                                <Route path="/cart" element={<CartPage cartItems={cartItems} updateQuantity={updateQuantity} removeFromCart={removeFromCart} clearCart={clearCart} userId={userId} />} />
+                                {/* Redirect any other path to home */}
+                                <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         </main>
                         <Footer />

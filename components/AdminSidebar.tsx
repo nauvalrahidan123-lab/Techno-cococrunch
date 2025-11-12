@@ -1,18 +1,27 @@
 // FIX: Removed failing vite/client reference. The type error indicates a global configuration issue, and this reference is ineffective here.
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { DashboardIcon, ProductsIcon, SalesIcon, EmployeesIcon, LogoutIcon } from './icons';
+import { DashboardIcon, ProductsIcon, SalesIcon, EmployeesIcon, LogoutIcon, InfoIcon } from './icons';
+import { auth } from '../services/firebase';
+import { signOut } from 'firebase/auth';
+import toast from 'react-hot-toast';
 
-interface AdminSidebarProps {
-    setAuth: (isAuth: boolean) => void;
-}
-
-const AdminSidebar: React.FC<AdminSidebarProps> = ({ setAuth }) => {
+const AdminSidebar: React.FC = () => {
     const navigate = useNavigate();
 
-    const handleLogout = () => {
-        setAuth(false);
-        navigate('/'); // Redirect to the main shop page after logout for better UX
+    const handleLogout = async () => {
+        if (auth) {
+            try {
+                await signOut(auth);
+                toast.success('Anda telah logout.');
+                navigate('/'); // Redirect to the main shop page after logout
+            } catch (error) {
+                toast.error('Gagal untuk logout.');
+            }
+        } else {
+            // Fallback for demo mode
+            navigate('/');
+        }
     };
 
     const linkClasses = "flex items-center px-4 py-3 text-gray-600 transition-colors duration-200 transform rounded-lg hover:bg-gray-200 hover:text-gray-700";
@@ -34,6 +43,9 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ setAuth }) => {
                     </NavLink>
                     <NavLink to="/admin/employees" className={({ isActive }) => isActive ? `${linkClasses} ${activeLinkClasses}` : linkClasses}>
                         <EmployeesIcon /><span className="mx-4 font-medium">Karyawan</span>
+                    </NavLink>
+                     <NavLink to="/admin/business-info" className={({ isActive }) => isActive ? `${linkClasses} ${activeLinkClasses}` : linkClasses}>
+                        <InfoIcon /><span className="mx-4 font-medium">Info Bisnis</span>
                     </NavLink>
                 </nav>
                 <div>
